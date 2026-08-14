@@ -5,7 +5,12 @@
 # Usage:
 #   ./create.sh                                          # base repos only
 #   WITH="cms-api tango-service" ./create.sh             # base + optional repos
+#   TITLE=docsTile ./create.sh                           # dir is "<n>-docsTile" instead of just "<n>"
 #   PUSH_AS=fix-auth-bug ./create.sh                        # also wire up remote tracking
+#
+# TITLE is cosmetic only -- branches, PUSH_AS tracking, and `destroy.sh <n>`
+# all key off the leading number, never the title, so the sandbox stays
+# referenceable by index alone (e.g. `make destroy N=3` finds "3-docsTile").
 #
 # PUSH_AS sets each repo's sandbox/<n>/<repo> branch to track origin/<PUSH_AS>, so a
 # bare `git push` from inside that worktree pushes straight to <PUSH_AS> on the
@@ -29,16 +34,24 @@ usage() {
   exit 1
 }
 
-# ---- pick the next sandbox number ----
+if [[ "${TITLE:-}" == */* ]]; then
+  echo "error: TITLE cannot contain '/'" >&2
+  exit 1
+fi
+
+# ---- pick the next sandbox number (dirs are "<n>" or "<n>-<title>") ----
 next=1
 for d in "$SANDBOX_ROOT"/*/; do
   [[ -d "$d" ]] || continue
   name="$(basename "$d")"
-  [[ "$name" =~ ^[0-9]+$ ]] || continue
-  (( 10#$name >= next )) && next=$(( 10#$name + 1 ))
+  [[ "$name" =~ ^([0-9]+)(-.*)?$ ]] || continue
+  num="${BASH_REMATCH[1]}"
+  (( 10#$num >= next )) && next=$(( 10#$num + 1 ))
 done
 
-sandbox_dir="$SANDBOX_ROOT/$next"
+sandbox_name="$next"
+[[ -n "${TITLE:-}" ]] && sandbox_name="$next-$TITLE"
+sandbox_dir="$SANDBOX_ROOT/$sandbox_name"
 
 # ---- resolve repo list: base + WITH, deduped, order preserved ----
 declare -A seen=()
@@ -97,3 +110,4 @@ done
 echo
 echo "Sandbox $next ready: $sandbox_dir"
 echo "Repos: ${requested[*]}"
+echo "Reference by index: make destroy N=$next"
