@@ -1,0 +1,4 @@
+# Sandbox instances created by `make new` live here as numbered directories
+# (1/, 2/, ...) containing git worktrees of actual company repos. These must
+# never be tracked in this repo.
+/[0-9]*/

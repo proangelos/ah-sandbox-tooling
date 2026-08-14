@@ -28,4 +28,7 @@ DEFAULT_BRANCH="master"
 declare -A BRANCH_OVERRIDES=(
 )
 
-SANDBOX_ROOT="$HOME/dev/sandbox"
+# Wherever create.sh/destroy.sh actually live -- SCRIPT_DIR is set by whichever
+# of them sourced this file, so sandboxes are created next to this repo no
+# matter where it's checked out.
+SANDBOX_ROOT="$SCRIPT_DIR"

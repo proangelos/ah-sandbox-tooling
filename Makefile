@@ -1,4 +1,6 @@
-SANDBOX_ROOT := $(HOME)/dev/sandbox
+# Directory this Makefile itself lives in, regardless of where the repo is
+# checked out or what directory `make` was invoked from.
+SANDBOX_ROOT := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 
 .PHONY: help new list destroy
 .DEFAULT_GOAL := help
