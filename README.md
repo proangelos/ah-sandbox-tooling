@@ -50,13 +50,15 @@ untracked file never appear in a sandbox: a worktree only populates tracked
 files, regardless of what's sitting in the source repo's own working tree.
 
 **Base branch.** Before creating the worktree, `create.sh` runs
-`git fetch origin <branch>` in the source repo (`<branch>` = `DEFAULT_BRANCH`,
-or that repo's entry in `BRANCH_OVERRIDES` -- see `repos.sh`), then branches
-the worktree off `origin/<branch>`. Sandboxes always start from a fresh
-remote-fetched state this way, independent of whatever branch/commit the
-source repo's own checkout happens to be sitting on. If that fetch fails --
-e.g. a repo never had a `DEFAULT_BRANCH` cut for it -- `FALLBACK_BRANCH` is
-tried next before that repo is treated as an error.
+`git fetch origin <branch>` in the source repo (`<branch>` = that repo's
+entry in `SOURCE_BRANCHES` -- see `repos.sh`), then branches the worktree off
+`origin/<branch>`. Sandboxes always start from a fresh remote-fetched state
+this way, independent of whatever branch/commit the source repo's own
+checkout happens to be sitting on. Every repo in `REPOS` needs its own
+`SOURCE_BRANCHES` entry -- there's no default/fallback guessing, since repos
+here have already diverged (some never had a `feat/site-builder/main` cut,
+`p2p-service` uses its own `feat/p2p/main` convention, etc). `create.sh`
+errors out immediately if a repo is missing one.
 
 **Local branch name.** Always `sandbox/<n>/<repo>`, keyed off the sandbox's
 numeric index only -- never its optional `-<title>` suffix. This is what lets

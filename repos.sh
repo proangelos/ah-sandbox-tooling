@@ -20,17 +20,19 @@ BASE_REPOS=(forerunner ahmonolith ahportal-ui v7-react)
 OPTIONAL_REPOS=(cms-api cms-ui tango-service p2p-service)
 
 # Branch each repo's sandbox worktree branches off of, after fetching it fresh
-# from origin. Applies to every repo above unless overridden below.
-DEFAULT_BRANCH="feat/site-builder/main"
-
-# Tried if DEFAULT_BRANCH (or a repo's BRANCH_OVERRIDES entry) doesn't exist
-# on that repo's origin -- e.g. repos that never had a feat/site-builder/main
-# cut still get a usable base instead of create.sh erroring out on them.
-FALLBACK_BRANCH="feat/port/main"
-
-# Per-repo exceptions to DEFAULT_BRANCH, e.g.:
-#   [v7-react]="feat/site-builder/main"
-declare -A BRANCH_OVERRIDES=(
+# from origin. One explicit entry per repo in REPOS -- no default/fallback
+# guessing, since these repos have already diverged: some never had a
+# feat/site-builder/main cut, and p2p-service uses its own feat/p2p/main
+# convention entirely. create.sh errors out if a repo here has no entry.
+declare -A SOURCE_BRANCHES=(
+  [forerunner]="feat/site-builder/main"
+  [ahmonolith]="feat/site-builder/main"
+  [ahportal-ui]="feat/port/main"
+  [v7-react]="feat/site-builder/main"
+  [cms-api]="feat/site-builder/main"
+  [cms-ui]="feat/site-builder/main"
+  [tango-service]="master"
+  [p2p-service]="feat/p2p/main"
 )
 
 # Wherever create.sh/destroy.sh actually live -- SCRIPT_DIR is set by whichever

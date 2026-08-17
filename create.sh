@@ -19,11 +19,9 @@
 # checkout or any other worktree.
 #
 # Each worktree branches off a fresh `git fetch origin <branch>` of that repo's
-# source branch (DEFAULT_BRANCH, or its entry in BRANCH_OVERRIDES -- see
-# repos.sh), so sandboxes always start from the latest remote state regardless
-# of what the source repo's own working tree happens to be checked out to. If
-# that branch doesn't exist on a given repo's origin, FALLBACK_BRANCH is tried
-# instead before giving up on that repo.
+# source branch (its entry in SOURCE_BRANCHES -- see repos.sh), so sandboxes
+# always start from the latest remote state regardless of what the source
+# repo's own working tree happens to be checked out to.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -79,26 +77,23 @@ for repo in "${requested[@]}"; do
   fi
   branch="sandbox/$next/$repo"
   dest="$sandbox_dir/$repo"
-  source_branch="${BRANCH_OVERRIDES[$repo]:-$DEFAULT_BRANCH}"
-  actual_branch="$source_branch"
-
-  if git -C "$src" fetch --quiet origin "$source_branch" 2>/dev/null; then
-    :
-  elif [[ -n "${FALLBACK_BRANCH:-}" && "$FALLBACK_BRANCH" != "$source_branch" ]] \
-      && git -C "$src" fetch --quiet origin "$FALLBACK_BRANCH" 2>/dev/null; then
-    echo "  note: '$source_branch' not found on origin for $repo, falling back to '$FALLBACK_BRANCH'"
-    actual_branch="$FALLBACK_BRANCH"
-  else
-    echo "error: failed to fetch '$source_branch' (or fallback '${FALLBACK_BRANCH:-none}') from origin for $repo" >&2
+  source_branch="${SOURCE_BRANCHES[$repo]:-}"
+  if [[ -z "$source_branch" ]]; then
+    echo "error: no SOURCE_BRANCHES entry for '$repo' in repos.sh" >&2
     exit 1
   fi
 
-  echo "  worktree: $repo  ($src -> $dest, branch $branch off origin/$actual_branch)"
+  if ! git -C "$src" fetch --quiet origin "$source_branch" 2>/dev/null; then
+    echo "error: failed to fetch '$source_branch' from origin for $repo" >&2
+    exit 1
+  fi
+
+  echo "  worktree: $repo  ($src -> $dest, branch $branch off origin/$source_branch)"
   # --no-track: without it, git's branch.autoSetupMerge default would make this
-  # branch track origin/$actual_branch (e.g. master) just for having been
+  # branch track origin/$source_branch (e.g. master) just for having been
   # created from it -- a live wire if anything ever pushes to "@{upstream}"
   # without PUSH_AS deliberately having set tracking below.
-  git -C "$src" worktree add -q -b "$branch" --no-track "$dest" "origin/$actual_branch"
+  git -C "$src" worktree add -q -b "$branch" --no-track "$dest" "origin/$source_branch"
 
   if [[ -n "${PUSH_AS:-}" ]]; then
     # Enable per-worktree config once per source repo (harmless, repo-wide flag
