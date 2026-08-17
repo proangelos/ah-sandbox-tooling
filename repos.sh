@@ -23,6 +23,11 @@ OPTIONAL_REPOS=(cms-api cms-ui tango-service p2p-service)
 # from origin. Applies to every repo above unless overridden below.
 DEFAULT_BRANCH="feat/site-builder/main"
 
+# Tried if DEFAULT_BRANCH (or a repo's BRANCH_OVERRIDES entry) doesn't exist
+# on that repo's origin -- e.g. repos that never had a feat/site-builder/main
+# cut still get a usable base instead of create.sh erroring out on them.
+FALLBACK_BRANCH="feat/port/main"
+
 # Per-repo exceptions to DEFAULT_BRANCH, e.g.:
 #   [v7-react]="feat/site-builder/main"
 declare -A BRANCH_OVERRIDES=(

@@ -54,7 +54,9 @@ files, regardless of what's sitting in the source repo's own working tree.
 or that repo's entry in `BRANCH_OVERRIDES` -- see `repos.sh`), then branches
 the worktree off `origin/<branch>`. Sandboxes always start from a fresh
 remote-fetched state this way, independent of whatever branch/commit the
-source repo's own checkout happens to be sitting on.
+source repo's own checkout happens to be sitting on. If that fetch fails --
+e.g. a repo never had a `DEFAULT_BRANCH` cut for it -- `FALLBACK_BRANCH` is
+tried next before that repo is treated as an error.
 
 **Local branch name.** Always `sandbox/<n>/<repo>`, keyed off the sandbox's
 numeric index only -- never its optional `-<title>` suffix. This is what lets
