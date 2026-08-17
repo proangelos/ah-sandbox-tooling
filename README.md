@@ -40,3 +40,51 @@ is no clever path convention to lean on instead.
 `repos.sh` is the source of truth for the actual paths, base/optional
 grouping, and default branches. This file is just the "why" behind its
 shape.
+
+## How sandbox worktrees & branches work
+
+Each repo in a sandbox is a `git worktree` of the matching source repo, not a
+clone -- it shares that repo's `.git` object store and history, and shows up
+in `git -C <source> worktree list`. This is also why `.env` and any other
+untracked file never appear in a sandbox: a worktree only populates tracked
+files, regardless of what's sitting in the source repo's own working tree.
+
+**Base branch.** Before creating the worktree, `create.sh` runs
+`git fetch origin <branch>` in the source repo (`<branch>` = `DEFAULT_BRANCH`,
+or that repo's entry in `BRANCH_OVERRIDES` -- see `repos.sh`), then branches
+the worktree off `origin/<branch>`. Sandboxes always start from a fresh
+remote-fetched state this way, independent of whatever branch/commit the
+source repo's own checkout happens to be sitting on.
+
+**Local branch name.** Always `sandbox/<n>/<repo>`, keyed off the sandbox's
+numeric index only -- never its optional `-<title>` suffix. This is what lets
+a titled sandbox dir (`3-docsTile/`) still resolve cleanly by index alone.
+
+**No default tracking.** The worktree is created with `--no-track`. Without
+it, git's `branch.autoSetupMerge` default would silently set the new branch
+to track `origin/<branch>` (e.g. `master`) just for having been branched from
+it -- a live wire, since pushing to `@{upstream}` later would go straight to
+master. With no tracking configured, a bare `git push` simply has nowhere to
+go until you tell it where.
+
+**`PUSH_AS=<name>` (optional).** Wires that one worktree's branch to track
+`origin/<name>` instead, so a bare `git push` goes straight there:
+
+- `branch.sandbox/<n>/<repo>.remote` / `.merge` are set to point at
+  `origin/<name>`. These live in the source repo's shared config (branches
+  are a shared, exclusively-checked-out resource, same as any real feature
+  branch), not anything worktree-specific.
+- `push.default upstream` is set too, but scoped to *this worktree only* via
+  `git config --worktree` (after enabling `extensions.worktreeConfig` once
+  per source repo). This is what allows a push to a differently-named
+  upstream without requiring `-u`/an explicit refspec, and critically,
+  without changing push behavior for the source repo's main checkout or any
+  of its other worktrees.
+
+Without `PUSH_AS`, none of the above is touched -- push manually with an
+explicit refspec (`git push origin HEAD:<remote-branch>`).
+
+**Teardown.** `destroy.sh` runs `git worktree remove --force` and
+`git branch -D` for each repo *from the source repo*, not the sandbox dir.
+Deleting the branch automatically strips its `branch.<name>.*` config, so any
+`PUSH_AS` wiring cleans itself up with it -- no separate cleanup step needed.
