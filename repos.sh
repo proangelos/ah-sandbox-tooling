@@ -21,7 +21,7 @@ OPTIONAL_REPOS=(cms-api cms-ui tango-service p2p-service)
 
 # Branch each repo's sandbox worktree branches off of, after fetching it fresh
 # from origin. Applies to every repo above unless overridden below.
-DEFAULT_BRANCH="master"
+DEFAULT_BRANCH="feat/site-builder/main"
 
 # Per-repo exceptions to DEFAULT_BRANCH, e.g.:
 #   [v7-react]="feat/site-builder/main"
