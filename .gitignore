@@ -2,3 +2,7 @@
 # (1/, 2/, ...) containing git worktrees of actual company repos. These must
 # never be tracked in this repo.
 /[0-9]*/
+
+# Per-developer repo config overrides/additions layered on top of
+# .env.default -- see .env.example.
+/.env

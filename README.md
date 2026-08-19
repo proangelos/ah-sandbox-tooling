@@ -1,9 +1,40 @@
 # Repo layout
 
-Notes for whoever (human or Claude) touches `repos.sh` next. The repos this
-tool sandboxes are **not** all laid out the same way under `~/dev/`, and
-that split is deliberate, not a bug -- `repos.sh`'s `REPOS` map is a plain
+Notes for whoever (human or Claude) touches this tool's config next. The
+repos this tool sandboxes are **not** all laid out the same way under
+`~/dev/`, and that split is deliberate, not a bug -- `REPOS` is a plain
 name -> path lookup specifically so it can absorb this.
+
+## Customizing for your setup
+
+Repo paths, branches, and grouping live in `.env.default` (tracked --
+shared defaults for the team) and are loaded by `repos.sh`. If your repos
+live somewhere other than the paths in `.env.default` -- a different root,
+a different sync layout, or you just don't have `forerunner` managing
+things the same way -- don't edit `.env.default` directly. Instead, copy
+`.env.example` to `.env` (gitignored) and override just what differs for
+you:
+
+```sh
+cp .env.example .env
+```
+
+`.env` is sourced after `.env.default`, so it only needs to state deltas:
+
+```sh
+# Override an existing repo's path
+REPOS[forerunner]="$HOME/code/forerunner"
+
+# Add a repo .env.default doesn't know about (SOURCE_BRANCHES is required)
+REPOS[my-service]="$HOME/dev/my-service"
+SOURCE_BRANCHES[my-service]="main"
+OPTIONAL_REPOS+=(my-service)
+```
+
+Both files are plain bash (associative arrays), not real dotenv `KEY=VALUE`
+syntax -- repo entries need multiple fields (path, branch, group,
+description), which a flat format can't hold cleanly. See `.env.example`
+for the full syntax reference.
 
 ## Two different layouts
 
@@ -31,13 +62,16 @@ physically live. Same story for `tango-service` and `p2p-service`
 
 ## Why this matters here
 
-`repos.sh` hardcodes each repo's source path individually instead of
+`.env.default` hardcodes each repo's source path individually instead of
 deriving them from one shared parent, precisely because of the split above.
 If forerunner's sync tooling ever starts/stops managing a given repo, or a
-repo moves, `repos.sh`'s `REPOS` map needs a matching one-line edit -- there
-is no clever path convention to lean on instead.
+repo moves, `.env.default`'s `REPOS` map needs a matching one-line edit --
+there is no clever path convention to lean on instead. If it's just *your*
+layout that differs from the team default, override it in `.env` instead
+(see "Customizing for your setup" above) rather than editing the tracked
+file.
 
-`repos.sh` is the source of truth for the actual paths, base/optional
+`.env.default` is the source of truth for the actual paths, base/optional
 grouping, and default branches. This file is just the "why" behind its
 shape.
 
@@ -45,13 +79,15 @@ shape.
 
 Each repo in a sandbox is a `git worktree` of the matching source repo, not a
 clone -- it shares that repo's `.git` object store and history, and shows up
-in `git -C <source> worktree list`. This is also why `.env` and any other
-untracked file never appear in a sandbox: a worktree only populates tracked
-files, regardless of what's sitting in the source repo's own working tree.
+in `git -C <source> worktree list`. This is also why a source repo's own
+untracked files (e.g. an app's own `.env`, unrelated to this tool's
+`.env`/`.env.default`) never appear in a sandbox: a worktree only populates
+tracked files, regardless of what's sitting in the source repo's own
+working tree.
 
 **Base branch.** Before creating the worktree, `create.sh` runs
 `git fetch origin <branch>` in the source repo (`<branch>` = that repo's
-entry in `SOURCE_BRANCHES` -- see `repos.sh`), then branches the worktree off
+entry in `SOURCE_BRANCHES` -- see `.env.default`), then branches the worktree off
 `origin/<branch>`. Sandboxes always start from a fresh remote-fetched state
 this way, independent of whatever branch/commit the source repo's own
 checkout happens to be sitting on. Every repo in `REPOS` needs its own

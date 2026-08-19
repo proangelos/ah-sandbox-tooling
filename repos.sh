@@ -1,39 +1,12 @@
-# Source-of-truth repo map for the sandbox create/destroy scripts.
-# Edit this file to add, remove, or move repos -- create.sh and destroy.sh both read it.
+# Loads repo config for the sandbox create/destroy scripts.
 # Sourced, not executed: no shebang, no `set -e` (would leak into the caller).
-
-declare -A REPOS=(
-  [forerunner]="$HOME/dev/forerunner"
-  [ahmonolith]="$HOME/dev/forerunner/repos/ahmonolith"
-  [ahportal-ui]="$HOME/dev/forerunner/repos/ahportal-ui"
-  [v7-react]="$HOME/dev/forerunner/repos/v7-react"
-  [cms-api]="$HOME/dev/cms-api"
-  [cms-ui]="$HOME/dev/cms-ui"
-  [tango-service]="$HOME/dev/tango-service"
-  [p2p-service]="$HOME/dev/p2p-service"
-)
-
-# Always included in every new sandbox.
-BASE_REPOS=(forerunner ahmonolith ahportal-ui v7-react)
-
-# Available via WITH="repo1 repo2 ..."; not included unless requested.
-OPTIONAL_REPOS=(cms-api cms-ui tango-service p2p-service)
-
-# Branch each repo's sandbox worktree branches off of, after fetching it fresh
-# from origin. One explicit entry per repo in REPOS -- no default/fallback
-# guessing, since these repos have already diverged: some never had a
-# feat/site-builder/main cut, and p2p-service uses its own feat/p2p/main
-# convention entirely. create.sh errors out if a repo here has no entry.
-declare -A SOURCE_BRANCHES=(
-  [forerunner]="feat/site-builder/main"
-  [ahmonolith]="feat/site-builder/main"
-  [ahportal-ui]="feat/port/main"
-  [v7-react]="feat/site-builder/main"
-  [cms-api]="feat/site-builder/main"
-  [cms-ui]="feat/site-builder/main"
-  [tango-service]="master"
-  [p2p-service]="feat/p2p/main"
-)
+#
+# The actual repo data (REPOS, BASE_REPOS, OPTIONAL_REPOS, SOURCE_BRANCHES,
+# REPO_GROUP, REPO_DESC) lives in .env.default (tracked shared defaults),
+# with .env (gitignored, optional) layered on top for per-developer path
+# overrides or additional repos -- see .env.example for the override syntax.
+source "$SCRIPT_DIR/.env.default"
+[[ -f "$SCRIPT_DIR/.env" ]] && source "$SCRIPT_DIR/.env"
 
 # Wherever create.sh/destroy.sh actually live -- SCRIPT_DIR is set by whichever
 # of them sourced this file, so sandboxes are created next to this repo no

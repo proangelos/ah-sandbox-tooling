@@ -69,6 +69,26 @@ done
 echo "Creating sandbox $next at $sandbox_dir"
 mkdir -p "$sandbox_dir"
 
+# ---- group requested repos by REPO_GROUP (repos.sh), preserving first-seen
+# order, so the sandbox's own README can explain how they relate instead of
+# just listing them flat.
+group_order=()
+declare -A group_seen=()
+declare -A group_members=()
+for repo in "${requested[@]}"; do
+  g="${REPO_GROUP[$repo]:-$repo}"
+  if [[ -z "${group_seen[$g]:-}" ]]; then
+    group_seen[$g]=1
+    group_order+=("$g")
+  fi
+  group_members[$g]+="$repo"$'\n'
+done
+
+# repo -> "branch X off origin/Y" line and repo -> raw branch name, filled in
+# as each worktree is created below; assembled into the README after the loop.
+declare -A repo_branch_line=()
+declare -A repo_branch_name=()
+
 for repo in "${requested[@]}"; do
   src="${REPOS[$repo]}"
   if [[ ! -d "$src/.git" ]]; then
@@ -94,6 +114,8 @@ for repo in "${requested[@]}"; do
   # created from it -- a live wire if anything ever pushes to "@{upstream}"
   # without PUSH_AS deliberately having set tracking below.
   git -C "$src" worktree add -q -b "$branch" --no-track "$dest" "origin/$source_branch"
+  repo_branch_line[$repo]="branch \`$branch\` off \`origin/$source_branch\`"
+  repo_branch_name[$repo]="$branch"
 
   if [[ -n "${PUSH_AS:-}" ]]; then
     # Enable per-worktree config once per source repo (harmless, repo-wide flag
@@ -111,6 +133,78 @@ for repo in "${requested[@]}"; do
     echo "    tracking: git push (bare) in $dest -> origin/$PUSH_AS"
   fi
 done
+
+# ---- assemble the grouped "## Repos" body: a header per group with >1
+# requested member (to name the relationship), a plain bullet otherwise.
+readme_repo_lines=""
+for g in "${group_order[@]}"; do
+  members=()
+  while IFS= read -r m; do [[ -n "$m" ]] && members+=("$m"); done <<< "${group_members[$g]}"
+  (( ${#members[@]} > 1 )) && readme_repo_lines+="**$g:**"$'\n'
+  for m in "${members[@]}"; do
+    desc="${REPO_DESC[$m]:-}"
+    readme_repo_lines+="- **$m** -- ${desc:+$desc; }${repo_branch_line[$m]}"$'\n'
+  done
+  readme_repo_lines+=$'\n'
+done
+
+# ---- assemble the "## Branch tracking" body, since how a bare `git push`
+# behaves here depends on whether PUSH_AS was set at creation.
+if [[ -n "${PUSH_AS:-}" ]]; then
+  tracking_lines=""
+  for repo in "${requested[@]}"; do
+    tracking_lines+="- **$repo**: \`${repo_branch_name[$repo]}\` -> \`origin/$PUSH_AS\`"$'\n'
+  done
+  branch_tracking_body="Every branch below was created with \`--no-track\`, then wired for \`PUSH_AS=$PUSH_AS\`:
+
+- \`push.default upstream\` is set per worktree (\`git config --worktree\`) --
+  scoped to that worktree only, so it doesn't change push behavior for the
+  source repo's main checkout or any of its other worktrees.
+- Each branch's \`branch.<name>.remote\`/\`.merge\` point at \`origin/$PUSH_AS\`
+  in the *shared* repo config (branches aren't worktree-scoped -- this is
+  the same config any real feature branch's tracking would live in).
+
+So a bare \`git push\` from inside any repo below pushes straight to
+\`origin/$PUSH_AS\`, no \`-u\` or explicit refspec needed:
+
+$tracking_lines"
+else
+  branch_tracking_body="Every branch below was created with \`--no-track\`, so none of them
+have an upstream configured. A bare \`git push\` from any repo here will be
+rejected until you either:
+
+- re-create this sandbox with \`PUSH_AS=<branch>\` to wire tracking
+  automatically for every repo, or
+- set it manually per repo you want to push from:
+  \`git push -u origin <branch-name>\`"
+fi
+
+cat > "$sandbox_dir/README.md" <<EOF
+# Sandbox $next${TITLE:+ ($TITLE)}
+
+Created by \`create.sh\`. Each repo below is a \`git worktree\` of its source
+repo (see repos.sh), not a clone -- untracked files from the source repo's
+working tree never show up here.
+
+Repos are grouped below by how they relate in a normal \`~/dev\` checkout
+(shared stack, frontend/backend pair, etc). That relationship is about the
+*source* checkouts only -- inside this sandbox every repo is worktreed to a
+flat sibling directly under this directory, even ones (like ahmonolith)
+that live nested inside another repo's tree (forerunner) normally.
+
+## Repos
+
+$readme_repo_lines
+## Branch tracking
+
+$branch_tracking_body
+
+## Tear down
+
+\`\`\`
+make destroy N=$next
+\`\`\`
+EOF
 
 echo
 echo "Sandbox $next ready: $sandbox_dir"
