@@ -14,8 +14,9 @@ help: ## Show this help
 # make new WITH="cms-api tango-service"                 base + optional repos
 # make new TITLE=docsTile                               dir is "<n>-docsTile" instead of just "<n>"
 # make new WITH="cms-api" PUSH_AS=fix-auth-bug          + wires remote tracking to origin/fix-auth-bug
-new: ## Create a new numbered sandbox (WITH="repo1 repo2", TITLE=name, PUSH_AS=branch-name)
-	@WITH="$(WITH)" TITLE="$(TITLE)" PUSH_AS="$(PUSH_AS)" $(SANDBOX_ROOT)/create.sh
+# make new SOURCE_FROM=fix-auth-bug                     + branches off fix-auth-bug instead, where it exists
+new: ## Create a new numbered sandbox (WITH="repo1 repo2", TITLE=name, PUSH_AS=branch-name, SOURCE_FROM=branch-name)
+	@WITH="$(WITH)" TITLE="$(TITLE)" PUSH_AS="$(PUSH_AS)" SOURCE_FROM="$(SOURCE_FROM)" $(SANDBOX_ROOT)/create.sh
 
 list: ## List existing sandboxes
 	@ls -1 $(SANDBOX_ROOT) 2>/dev/null | grep -E '^[0-9]+(-.*)?$$' || echo "no sandboxes yet"

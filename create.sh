@@ -7,6 +7,7 @@
 #   WITH="cms-api tango-service" ./create.sh             # base + optional repos
 #   TITLE=docsTile ./create.sh                           # dir is "<n>-docsTile" instead of just "<n>"
 #   PUSH_AS=fix-auth-bug ./create.sh                        # also wire up remote tracking
+#   SOURCE_FROM=fix-auth-bug ./create.sh                    # branch off that branch instead, where it exists
 #
 # TITLE is cosmetic only -- branches, PUSH_AS tracking, and `destroy.sh <n>`
 # all key off the leading number, never the title, so the sandbox stays
@@ -16,12 +17,27 @@
 # bare `git push` from inside that worktree pushes straight to <PUSH_AS> on the
 # remote -- no -u, no explicit refspec. This only affects that one worktree's
 # push behavior (via `git config --worktree`), not the source repo's main
-# checkout or any other worktree.
+# checkout or any other worktree. It has no effect on which commit a
+# worktree branches off of -- see SOURCE_FROM for that.
 #
-# Each worktree branches off a fresh `git fetch origin <branch>` of that repo's
-# source branch (its entry in SOURCE_BRANCHES -- see repos.sh), so sandboxes
-# always start from the latest remote state regardless of what the source
-# repo's own working tree happens to be checked out to.
+# Each worktree normally branches off a fresh `git fetch origin <branch>` of
+# that repo's source branch (its entry in SOURCE_BRANCHES -- see .env.default),
+# so sandboxes always start from the latest remote state regardless of what
+# the source repo's own working tree happens to be checked out to.
+#
+# SOURCE_FROM=<name>, if a branch named <name> already exists for a given
+# repo -- on origin, or only locally -- branches that repo's worktree off the
+# latest of *that* branch instead of its usual SOURCE_BRANCHES entry (origin
+# takes priority when both exist, since it's fetched fresh; a local-only
+# branch is used as-is). This is per repo: a repo without a matching
+# SOURCE_FROM branch still falls back to its normal source branch.
+# SOURCE_FROM is independent of PUSH_AS -- set either, both, or neither.
+#
+# Every sandbox also gets AGENTS.md + CLAUDE.md written at its root, next to
+# the generated README.md (the latter just imports the former via
+# `@AGENTS.md`, since Claude Code only auto-loads CLAUDE.md), telling any AI
+# agent working in the sandbox not to touch anything outside it without
+# explicit approval. destroy.sh removes both on teardown.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -103,18 +119,35 @@ for repo in "${requested[@]}"; do
     exit 1
   fi
 
-  if ! git -C "$src" fetch --quiet origin "$source_branch" 2>/dev/null; then
-    echo "error: failed to fetch '$source_branch' from origin for $repo" >&2
-    exit 1
+  # If SOURCE_FROM names a branch that already exists (remote takes
+  # priority, since we can fetch it fresh; fall back to a local-only branch
+  # as-is), branch this repo's worktree off the latest of that branch
+  # instead of its usual source branch.
+  start_point=""
+  if [[ -n "${SOURCE_FROM:-}" ]]; then
+    if git -C "$src" ls-remote --exit-code --heads origin "$SOURCE_FROM" &>/dev/null; then
+      git -C "$src" fetch --quiet origin "$SOURCE_FROM"
+      start_point="origin/$SOURCE_FROM"
+    elif git -C "$src" show-ref --verify --quiet "refs/heads/$SOURCE_FROM"; then
+      start_point="$SOURCE_FROM"
+    fi
   fi
 
-  echo "  worktree: $repo  ($src -> $dest, branch $branch off origin/$source_branch)"
+  if [[ -z "$start_point" ]]; then
+    if ! git -C "$src" fetch --quiet origin "$source_branch" 2>/dev/null; then
+      echo "error: failed to fetch '$source_branch' from origin for $repo" >&2
+      exit 1
+    fi
+    start_point="origin/$source_branch"
+  fi
+
+  echo "  worktree: $repo  ($src -> $dest, branch $branch off $start_point)"
   # --no-track: without it, git's branch.autoSetupMerge default would make this
-  # branch track origin/$source_branch (e.g. master) just for having been
-  # created from it -- a live wire if anything ever pushes to "@{upstream}"
-  # without PUSH_AS deliberately having set tracking below.
-  git -C "$src" worktree add -q -b "$branch" --no-track "$dest" "origin/$source_branch"
-  repo_branch_line[$repo]="branch \`$branch\` off \`origin/$source_branch\`"
+  # branch track $start_point (e.g. master) just for having been created from
+  # it -- a live wire if anything ever pushes to "@{upstream}" without
+  # PUSH_AS deliberately having set tracking below.
+  git -C "$src" worktree add -q -b "$branch" --no-track "$dest" "$start_point"
+  repo_branch_line[$repo]="branch \`$branch\` off \`$start_point\`"
   repo_branch_name[$repo]="$branch"
 
   if [[ -n "${PUSH_AS:-}" ]]; then
@@ -206,7 +239,53 @@ make destroy N=$next
 \`\`\`
 EOF
 
+# ---- AGENTS.md (source of truth) + CLAUDE.md (imports it -- Claude Code
+# only auto-loads CLAUDE.md, not AGENTS.md) -- the AI-agent-facing workspace
+# notes. Repo/branch/tracking detail already lives in README.md above, so
+# these just point there instead of duplicating it.
+if [[ -n "${SOURCE_FROM:-}" ]]; then
+  source_from_note="\`SOURCE_FROM=$SOURCE_FROM\` was set for this sandbox -- see the branch lines in README.md above for which repos actually matched and branched off it (a repo with no matching \`$SOURCE_FROM\` branch fell back to its normal source branch)."
+else
+  source_from_note="not set for this sandbox -- every repo was branched from its usual \`SOURCE_BRANCHES\` entry (see README.md above)."
+fi
+
+cat > "$sandbox_dir/AGENTS.md" <<EOF
+# Sandbox $next workspace notes
+
+**Read this before making any changes.** This directory (\`$sandbox_dir\`) is
+an isolated sandbox: each subdirectory here is a git worktree of a real
+company repo. Do not make code changes outside this workspace directory
+without the user's explicit approval -- that includes each repo's own
+source checkout, other sandboxes, and anywhere else on this machine.
+Everything needed for this task should live inside this directory; if a
+change genuinely requires touching something outside it, stop and ask the
+user first.
+
+See \`README.md\` next to this file for the full repo list, branches, and
+push-tracking (\`PUSH_AS\`) details.
+
+## Source branch overrides (\`SOURCE_FROM\`)
+
+$source_from_note
+
+## About this file
+
+Generated by \`create.sh\` when this sandbox was created
+($(date '+%Y-%m-%d %H:%M %Z')) -- not kept in sync with anything done
+afterward.
+EOF
+
+cat > "$sandbox_dir/CLAUDE.md" <<EOF
+# Sandbox $next workspace notes
+
+Claude Code: this workspace's actual instructions live in \`AGENTS.md\`,
+imported below rather than duplicated here.
+
+@AGENTS.md
+EOF
+
 echo
 echo "Sandbox $next ready: $sandbox_dir"
 echo "Repos: ${requested[*]}"
+echo "Workspace notes written: README.md, AGENTS.md, CLAUDE.md"
 echo "Reference by index: make destroy N=$next"

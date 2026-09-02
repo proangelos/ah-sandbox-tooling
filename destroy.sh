@@ -40,9 +40,10 @@ for dest in "$sandbox_dir"/*/; do
   git -C "$src" branch -D "$branch" 2>/dev/null || true
 done
 
-# create.sh drops a per-sandbox README.md alongside the repo worktrees;
-# clear it so rmdir below isn't blocked by a leftover file.
-rm -f "$sandbox_dir/README.md"
+# create.sh drops per-sandbox README.md/AGENTS.md/CLAUDE.md files alongside
+# the repo worktrees; clear them so rmdir below isn't blocked by a leftover
+# file.
+rm -f "$sandbox_dir/README.md" "$sandbox_dir/AGENTS.md" "$sandbox_dir/CLAUDE.md"
 
 if rmdir "$sandbox_dir" 2>/dev/null; then
   echo "sandbox $n destroyed"

@@ -96,6 +96,18 @@ here have already diverged (some never had a `feat/site-builder/main` cut,
 `p2p-service` uses its own `feat/p2p/main` convention, etc). `create.sh`
 errors out immediately if a repo is missing one.
 
+**`SOURCE_FROM=<name>` (optional) overrides the base branch.** If, for a
+given repo, a branch named `<name>` already exists -- on `origin`, or only
+locally -- that repo's sandbox branch is created off the latest of *that*
+branch instead of its `SOURCE_BRANCHES` entry. `origin/<name>` is preferred
+when both exist (it's fetched fresh before branching); a local-only `<name>`
+is used as-is. This is decided per repo, so in a multi-repo sandbox some
+repos may branch off `SOURCE_FROM` while others -- ones with no matching
+branch -- still branch off their normal source branch. `SOURCE_FROM` is
+independent of `PUSH_AS` below: set either, both, or neither. The generated
+`README.md` inside the sandbox (see below) always states the actual branch
+each repo was created off of.
+
 **Local branch name.** Always `sandbox/<n>/<repo>`, keyed off the sandbox's
 numeric index only -- never its optional `-<title>` suffix. This is what lets
 a titled sandbox dir (`3-docsTile/`) still resolve cleanly by index alone.
@@ -122,9 +134,32 @@ go until you tell it where.
   of its other worktrees.
 
 Without `PUSH_AS`, none of the above is touched -- push manually with an
-explicit refspec (`git push origin HEAD:<remote-branch>`).
+explicit refspec (`git push origin HEAD:<remote-branch>`). `PUSH_AS` only
+sets up push tracking -- it has no effect on which commit the worktree
+branches off of; see `SOURCE_FROM` above for that.
+
+**Generated per-sandbox files.** `create.sh` writes three files at the
+sandbox's root once the worktree loop finishes:
+
+- **`README.md`** -- the human-facing summary: repos grouped by how they
+  relate in a normal `~/dev` checkout (`REPO_GROUP`/`REPO_DESC` in
+  `.env.default`), the branch each was actually created off of, and how
+  `PUSH_AS` tracking (or its absence) affects a bare `git push`.
+- **`AGENTS.md`** -- the AI-agent-facing counterpart. It doesn't repeat the
+  repo/branch/tracking detail (that's what `README.md` is for); its job is
+  the directive that an AI agent working in the sandbox must not make code
+  changes outside that sandbox directory -- not the source repos' own
+  checkouts, not other sandboxes, not anywhere else on the machine -- without
+  the user's explicit approval, plus a one-line note on whether
+  `SOURCE_FROM` was set.
+- **`CLAUDE.md`** -- just imports `AGENTS.md` (`@AGENTS.md`) rather than
+  duplicating it, since Claude Code only auto-loads `CLAUDE.md` at session
+  start, not `AGENTS.md`.
 
 **Teardown.** `destroy.sh` runs `git worktree remove --force` and
 `git branch -D` for each repo *from the source repo*, not the sandbox dir.
 Deleting the branch automatically strips its `branch.<name>.*` config, so any
 `PUSH_AS` wiring cleans itself up with it -- no separate cleanup step needed.
+It also removes the generated `README.md`/`AGENTS.md`/`CLAUDE.md` files
+before its final `rmdir`, since a leftover file would otherwise make that
+fail.
