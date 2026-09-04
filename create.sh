@@ -254,12 +254,22 @@ cat > "$sandbox_dir/AGENTS.md" <<EOF
 
 **Read this before making any changes.** This directory (\`$sandbox_dir\`) is
 an isolated sandbox: each subdirectory here is a git worktree of a real
-company repo. Do not make code changes outside this workspace directory
-without the user's explicit approval -- that includes each repo's own
-source checkout, other sandboxes, and anywhere else on this machine.
-Everything needed for this task should live inside this directory; if a
-change genuinely requires touching something outside it, stop and ask the
-user first.
+company repo.
+
+- **This worktree is the only place to make code changes.** Do not touch
+  each repo's own source checkout, other sandboxes, or anywhere else on
+  this machine, without the user's explicit approval. Everything needed
+  for this task should live inside this directory; if a change genuinely
+  requires touching something outside it, stop and ask the user first.
+- **Running containers do not use this worktree's code, and that's
+  intentional.** Whatever's already running (e.g. forerunner's docker
+  compose stacks) was started from the source repos' own checkouts, not
+  from any sandbox worktree. A code change made here only reaches a
+  running container through the developer's own manual steps (rebuild,
+  restart, redeploy, etc.) -- it never happens automatically, and it isn't
+  something you should do yourself.
+- **Do not run commands against running containers** (\`docker exec\`,
+  restarts, rebuilds, and the like) without the user's explicit approval.
 
 See \`README.md\` next to this file for the full repo list, branches, and
 push-tracking (\`PUSH_AS\`) details.

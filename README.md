@@ -147,11 +147,18 @@ sandbox's root once the worktree loop finishes:
   `PUSH_AS` tracking (or its absence) affects a bare `git push`.
 - **`AGENTS.md`** -- the AI-agent-facing counterpart. It doesn't repeat the
   repo/branch/tracking detail (that's what `README.md` is for); its job is
-  the directive that an AI agent working in the sandbox must not make code
-  changes outside that sandbox directory -- not the source repos' own
-  checkouts, not other sandboxes, not anywhere else on the machine -- without
-  the user's explicit approval, plus a one-line note on whether
-  `SOURCE_FROM` was set.
+  the ground rules for an AI agent working in the sandbox:
+  - This worktree is the only place to make code changes -- not the source
+    repos' own checkouts, not other sandboxes, not anywhere else on the
+    machine -- without the user's explicit approval.
+  - Running containers (e.g. forerunner's docker compose stacks) do not run
+    this worktree's code, and that's intentional -- they were started from
+    the source repos' own checkouts. A code change here only reaches a
+    running container through the developer's own manual steps; it's never
+    automatic, and an agent shouldn't do it either.
+  - Don't run commands against running containers without explicit
+    approval.
+  - Plus a one-line note on whether `SOURCE_FROM` was set.
 - **`CLAUDE.md`** -- just imports `AGENTS.md` (`@AGENTS.md`) rather than
   duplicating it, since Claude Code only auto-loads `CLAUDE.md` at session
   start, not `AGENTS.md`.
