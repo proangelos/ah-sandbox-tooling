@@ -45,8 +45,8 @@ sync tool clones a specific set of app repos *into* `~/dev/forerunner/repos/`
 for it to manage. Three of them are repos this sandbox tool cares about:
 
 - **`ahmonolith`** -- `~/dev/forerunner/repos/ahmonolith` -- the core monolith backend
-- **`ahportal-ui`** -- `~/dev/forerunner/repos/ahportal-ui` -- portal frontend for legacy client
-- **`v7-react`** -- `~/dev/forerunner/repos/v7-react` -- portal frontend for v8/blueprint clients
+- **`ahportal-ui`** -- `~/dev/forerunner/repos/ahportal-ui` -- portal frontend for v8/blueprint clients
+- **`v7-react`** -- `~/dev/forerunner/repos/v7-react` -- portal frontend for legacy client
 
 All three are part of forerunner's `monolith` stack and are nested *under*
 `forerunner`'s own directory because forerunner's tooling put them there, not
