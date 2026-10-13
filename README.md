@@ -144,7 +144,10 @@ sandbox's root once the worktree loop finishes:
 - **`README.md`** -- the human-facing summary: repos grouped by how they
   relate in a normal `~/dev` checkout (`REPO_GROUP`/`REPO_DESC` in
   `.env.default`), the branch each was actually created off of, and how
-  `PUSH_AS` tracking (or its absence) affects a bare `git push`.
+  `PUSH_AS` tracking (or its absence) affects a bare `git push`. It also
+  has an initially empty "Post-creation base changes" section (between
+  "Repos" and "Branch tracking") for recording any repo whose base branch
+  is changed after creation.
 - **`AGENTS.md`** -- the AI-agent-facing counterpart. It doesn't repeat the
   repo/branch/tracking detail (that's what `README.md` is for); its job is
   the ground rules for an AI agent working in the sandbox:
@@ -159,6 +162,11 @@ sandbox's root once the worktree loop finishes:
   - Don't run commands against running containers without explicit
     approval.
   - Plus a one-line note on whether `SOURCE_FROM` was set.
+  - If any repo's base branch is changed after creation (rebase,
+    fast-forward, or a switch onto a different source branch), record it
+    in both `README.md` and `AGENTS.md` under "Post-creation base changes":
+    repo, old base + SHA, new base + SHA, date, reason, and which branch
+    the MR should target.
 - **`CLAUDE.md`** -- just imports `AGENTS.md` (`@AGENTS.md`) rather than
   duplicating it, since Claude Code only auto-loads `CLAUDE.md` at session
   start, not `AGENTS.md`.
